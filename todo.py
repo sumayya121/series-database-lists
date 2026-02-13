@@ -1,4 +1,6 @@
 # todo.py - todo functionality
+
+
 from flask import Blueprint, render_template, request, redirect, session
 
 # models.py
@@ -17,7 +19,7 @@ todo_bp = Blueprint('todo', __name__)
 db = SQLAlchemy(model_class=Base)
 
 
-class Category(db.Model):
+class Series(db.Model):
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
@@ -27,18 +29,18 @@ class Category(db.Model):
         return self.name
 
 
-class Todo(db.Model):
+class Episodes(db.Model):
     __tablename__ = "todos"
 
     id: Mapped[int] = mapped_column(primary_key=True, init=False)
-    task: Mapped[str] = mapped_column(db.String(200), nullable=False)
+    title: Mapped[str] = mapped_column(db.String(200), nullable=False)
     user_id: Mapped[str] = mapped_column(db.String(100), nullable=False)
     category_id: Mapped[int] = mapped_column(ForeignKey('categories.id'), nullable=False)
     done: Mapped[bool] = mapped_column(db.Boolean, default=False)
 
     @property
     def category(self):
-        return Category.query.get(self.category_id)
+        return Series.query.get(self.category_id)
 
 @todo_bp.route('/')
 def home():
@@ -46,8 +48,8 @@ def home():
     if not user:
         return render_template('login.html')
     session['user_id'] = user["id"]
-    todos = Todo.query.filter_by(user_id=session['user_id']).all()
-    categories = Category.query.all()
+    todos = Episodes.query.filter_by(user_id=session['user_id']).all()
+    categories = Series.query.all()
     return render_template('index.html', todos=todos, categories=categories, user=user)
 
 
@@ -59,7 +61,7 @@ def add():
     category_id = request.form.get('category_id', type=int)
     if not category_id:
         return redirect('/')
-    new_task = Todo(task=task_text, category_id=category_id, user_id=session['user_id'])
+    new_task = Episodes(task=task_text, category_id=category_id, user_id=session['user_id'])
     db.session.add(new_task)
     db.session.commit()
     return redirect('/')
@@ -67,7 +69,7 @@ def add():
 
 @todo_bp.route('/toggle/<int:todo_id>')
 def toggle(todo_id):
-    todo = Todo.query.get(todo_id)
+    todo = Episodes.query.get(todo_id)
     if todo and todo.user_id == session['user_id']:
         todo.done = not todo.done
         db.session.commit()
@@ -76,7 +78,7 @@ def toggle(todo_id):
 
 @todo_bp.route('/delete/<int:todo_id>')
 def delete(todo_id):
-    todo = Todo.query.get(todo_id)
+    todo = Episodes.query.get(todo_id)
     if todo and todo.user_id == session['user_id']:
         db.session.delete(todo)
         db.session.commit()
@@ -88,14 +90,14 @@ def init_app(app):
     with app.app_context():
         db.create_all()
         # Seed initial categories if they don't exist
-        if Category.query.count() == 0:
-            urgent = Category(name="Urgent")
-            non_urgent = Category(name="Non-urgent")
+        if Series.query.count() == 0:
+            urgent = Series(name="Urgent")
+            non_urgent = Series(name="Non-urgent")
             db.session.add(urgent)
             db.session.add(non_urgent)
             db.session.commit()
             
-        if Todo.query.count() == 0:
-            mreggleton = Todo(task="Mr Eggleton checking your Todo App!", done=False, user_id="github|5987806", category_id=non_urgent.id)
+        if Episodes.query.count() == 0:
+            mreggleton = Episodes(task="Mr Eggleton checking your Todo App!", done=False, user_id="github|5987806", category_id=non_urgent.id)
             db.session.add(mreggleton)
             db.session.commit()
